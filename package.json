@@ -24,7 +24,8 @@
   },
   "homepage": "https://github.com/iansan5653/discord-votemaster#readme",
   "dependencies": {
-    "discord.js": "^11.2.1"
+    "discord.js": "^11.2.1",
+    "uws": "^8.14.1"
   },
   "jshintConfig": {
     "esversion": 6
