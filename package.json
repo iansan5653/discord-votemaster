@@ -1,0 +1,32 @@
+{
+  "name": "discord-votemaster",
+  "version": "0.5.0",
+  "description": "Advanced polling bot for Discord.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iansan5653/discord-votemaster.git"
+  },
+  "keywords": [
+    "Discord",
+    "polls",
+    "voting",
+    "polling",
+    "bots"
+  ],
+  "author": "Ian Sanders",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/iansan5653/discord-votemaster/issues"
+  },
+  "homepage": "https://github.com/iansan5653/discord-votemaster#readme",
+  "dependencies": {
+    "discord.js": "^11.2.1"
+  },
+  "jsHintConfig": {
+    "esversion": 6
+  }
+}
