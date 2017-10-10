@@ -3,10 +3,12 @@ const Discord = require('discord.js');
 const client = new Discord.Client();
 
 const defaults = {
-	timeout: 30
+	timeout: 30,
+	color: 2555834
 };
 var pollIndex = 0;
 
+// The corresponding emojis are used as unique keys for choices within each poll object
 const emoji = {
 	numbers: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'],
 	letters: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
@@ -21,7 +23,8 @@ function Poll(opt) {
 	this.id = pollIndex;
 		pollIndex++;
 
-	this.choices = {};
+  // Choices is a map so it can be easily iterated
+	this.choices = new Map();
 	opt.choices.forEach((value, index) => {
 		this.choices[emoji[opt.emojiType][index]] = {
 			name: value,
@@ -35,39 +38,73 @@ function Poll(opt) {
 		};
 	}
 
-	this.lock = args.lock || false;
-	this.votedUsers = [];
-	this.private = args.pvt || args.private || false;
-	this.generateChart = args.chart || args.graph || false;
+	this.disallowEdits = args.lock || false;
+	this.blind = args.blind || false;
+	this.chartRequested = args.chart || args.graph || false;
 	this.reactionVoting = args.reactions || args.rxn || false;
-	this.mult = this.reactionVoting || args.mult || args.multiple || false;
-	this.role = args.role || false;
-	this.footNote = opt.notes.trim() || '';
+	this.allowMultipleVotes = this.reactionVoting || args.mult || args.multiple || false;
+	this.restrictRole = args.role || false;
+	this.dontCloseEarly = args.lo || args.leaveopen || args.dontcloseearly || false;
+
+	this.footNote = opt.notes || '';
+	footNote += `This is Poll \`${this.id}\`.`;
 
 	this.open = false;
 	this.totalVotes = 0;
 
-	// Initiate timer
+	this.voters = new Map();
+
+	// Function to initiate timer
 	this.startTimer = function() {
 		this.open = true;
-		setTimeout(function() {
-			this.open = false;
-		}.bind(this), opt.timeout * 60 * 1000);
+		setTimeout(this.close().bind(this), opt.timeout * 60 * 1000);
 	};
 
 	// Log votes (if the poll is open and unlocked/user hasn't voted)
 	this.vote = function(emoji, user) {
 		if(this.open) {
-			if(this.lock && this.votedUsers.findIndex(el => el === user) !== -1) {
-				return "Sorry, this is a locked poll (you can't edit your vote) and you've already voted.";
+			if(this.lock && this.voters[user.id]) {
+				return {
+					success: false,
+					reason: 'lock',
+					message: "Sorry, this is a locked poll (you can't edit your vote) and you've already voted."
+				};
 			} else {
 				this.choices[emoji].votes++;
-				this.votedUsers.push(user);
-				return `Great, I logged your vote for ${this.choices[emoji].name}!`;
+				// While we technically *could* use the user object as the key, that would be difficult to access. id should be unique.
+				this.voters[user.id] = {
+					user: user,
+					vote: {
+						time: new Date(),
+						choice: emoji
+					}
+				};
+				return {
+					success: true,
+					reason: '',
+					message: `Great, I logged your vote for ${this.choices[emoji].name}!`
+				};
 			}
 		} else {
-			return "Sorry, this poll has timed out and can no longer be voted on.";
+			return {
+				sucess: false,
+				reason: 'timeout',
+				message: "Sorry, this poll has timed out and can no longer be voted on."
+			};
 		}
+	};
+
+	this.close = function() {
+		// Calling close() on a closed poll has no effect
+		if(this.open) {
+			this.open = false;
+			return true;
+		} else return false;
+	};
+
+	this.generateChart = function() {
+		// TODO generate charts of results
+		return null;
 	};
 }
 
@@ -92,6 +129,7 @@ client.on('message', message => {
 				choices: choices,
 				emojiType: 'letters',
 				timeout: defaults.timeout,
+				color: defaults.color,
 				arguments: {},
 				role: false,
 				notes: ''
@@ -109,11 +147,23 @@ client.on('message', message => {
 					if(arg === 'time' || arg === 'timeout') {
 						let nextEl = args[index + 1];
 						// If the next element is a nunber
-						if(!isNaN(nextEl)) {
+						if(!isNaN(nextEl) && nextEl > 0) {
 							options.timeout = +nextEl;
 							args.slice(index + 1, 1);
 						} else {
-							let errorMessage = `A timeout argument was found, but the next item was not a number, so the poll defaulted to ${defaults.timeout} minutes. `;
+							let errorMessage = `A timeout argument was found, but the next item was not a valid number, so the poll defaulted to ${defaults.timeout} minutes. `;
+							console.warn(errorMessage);
+							options.notes += errorMessage;
+						}
+
+					} else if(arg === 'color' || arg === 'colour') {
+						let nextEl = args[index + 1];
+						// If the next element is a valid RGB int code
+						if(!isNaN(nextEl) && +nextEl >= 0 && +nextEl <= 256*256*256) {
+							options.color = +nextEl;
+							args.slice(index + 1, 1);
+						} else {
+							let errorMessage = `A color argument was found, but the next item was not an RGB int code, so this was ignored.`;
 							console.warn(errorMessage);
 							options.notes += errorMessage;
 						}
