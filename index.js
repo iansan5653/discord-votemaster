@@ -23,7 +23,7 @@ function Poll(opt) {
 	this.id = pollIndex;
 		pollIndex++;
 
-  // Choices is a map so it can be easily iterated
+	// Choices is a map so it can be easily iterated
 	this.choices = new Map();
 	opt.choices.forEach((value, index) => {
 		this.choices[emoji[opt.emojiType][index]] = {
@@ -109,7 +109,7 @@ function Poll(opt) {
 }
 
 client.on('ready', () => {
-  console.log('I am ready!');
+	console.log('I am ready!');
 });
 
 client.on('message', message => {
