@@ -4,7 +4,8 @@ const client = new Discord.Client();
 
 const defaults = {
 	timeout: 30,
-	color: 2555834
+	color: 2555834,
+	trigger: '!newpoll'
 };
 var pollIndex = 0;
 
@@ -17,72 +18,74 @@ const emoji = {
 	maybe: 'shrug'
 };
 
-function Poll(opt) {
-	var args = opt.arguments;
-	this.name = opt.name;
-	this.id = pollIndex;
-		pollIndex++;
+class Poll {
+	constructor(opt) {
+		var args = opt.arguments;
+		this.name = opt.name;
+		this.id = pollIndex;
+			pollIndex++;
 
-	// Choices is a map so it can be easily iterated
-	this.choices = new Map();
-	opt.choices.forEach((value, index) => {
-		this.choices[emoji[opt.emojiType][index]] = {
-			name: value,
-			votes: 0
-		};
-	});
-	if(args.maybe || args.idk) {
-		this.choices[emoji.maybe] = {
-			name: 'I don\'t know.',
-			votes: 0
-		};
+		// Choices is a map so it can be easily iterated
+		this.choices = new Map();
+		opt.choices.forEach((value, index) => {
+			this.choices.set(emoji[opt.emojiType][index], {
+				name: value,
+				votes: 0
+			});
+		});
+		if(args.maybe || args.idk) {
+			this.choices.set(emoji.maybe, {
+				name: 'I don\'t know.',
+				votes: 0
+			});
+		}
+
+		this.disallowEdits = args.lock || false;
+		this.blind = args.blind || false;
+		this.chartRequested = args.chart || args.graph || false;
+		this.reactionVoting = args.reactions || args.rxn || false;
+		this.allowMultipleVotes = this.reactionVoting || args.mult || args.multiple || false;
+		this.restrictRole = args.role || false;
+		this.dontCloseEarly = args.lo || args.leaveopen || args.dontcloseearly || false;
+
+		this.footNote = opt.notes || ' ';
+		this.footNote += `This is Poll \`${this.id}\`.`;
+
+		this.open = false;
+		this.totalVotes = 0;
+
+		this.voters = new Map();
 	}
 
-	this.disallowEdits = args.lock || false;
-	this.blind = args.blind || false;
-	this.chartRequested = args.chart || args.graph || false;
-	this.reactionVoting = args.reactions || args.rxn || false;
-	this.allowMultipleVotes = this.reactionVoting || args.mult || args.multiple || false;
-	this.restrictRole = args.role || false;
-	this.dontCloseEarly = args.lo || args.leaveopen || args.dontcloseearly || false;
-
-	this.footNote = opt.notes || ' ';
-	this.footNote += `This is Poll \`${this.id}\`.`;
-
-	this.open = false;
-	this.totalVotes = 0;
-
-	this.voters = new Map();
-
 	// Function to initiate timer
-	this.startTimer = function() {
+	startTimer() {
 		this.open = true;
 		setTimeout(this.close().bind(this), opt.timeout * 60 * 1000);
-	};
+	}
 
 	// Log votes (if the poll is open and unlocked/user hasn't voted)
-	this.vote = function(emoji, user) {
+	vote(emoji, user) {
 		if(this.open) {
-			if(this.lock && this.voters[user.id]) {
+			if(this.lock && this.voters.get(user.id)) {
 				return {
 					success: false,
 					reason: 'lock',
 					message: "Sorry, this is a locked poll (you can't edit your vote) and you've already voted."
 				};
 			} else {
-				this.choices[emoji].votes++;
+				this.choices.get(emoji).votes++;
 				// While we technically *could* use the user object as the key, that would be difficult to access. id should be unique.
-				this.voters[user.id] = {
+				this.voters.set(user.id, {
 					user: user,
 					vote: {
 						time: new Date(),
 						choice: emoji
 					}
-				};
+				});
 				return {
 					success: true,
 					reason: '',
-					message: `Great, I logged your vote for ${this.choices[emoji].name}!`
+					message: `Great, I logged your vote for ${this.choices.get(emoji).name}!`
 				};
 			}
 		} else {
@@ -92,20 +95,20 @@ function Poll(opt) {
 				message: "Sorry, this poll has timed out and can no longer be voted on."
 			};
 		}
-	};
+	}
 
-	this.close = function() {
+	close() {
 		// Calling close() on a closed poll has no effect
 		if(this.open) {
 			this.open = false;
 			return true;
 		} else return false;
-	};
+	}
 
-	this.generateChart = function() {
+	generateChart() {
 		// TODO generate charts of results
 		return null;
-	};
+	}
 }
 
 client.on('ready', () => {
@@ -116,7 +119,7 @@ client.on('message', message => {
 	// Array with: anything in brackets, anything in quotes, anything separated by spaces (in that hierarchy)
 	var args = message.content.trim().match(/(?:[^\s"\[]+|\[[^\[]*\]|"[^"]*")+/g);
 
-	if(args.shift().toLowerCase() === '!newpoll') {
+	if(args.shift().toLowerCase() === defaults.trigger) {
 		// Do a little format checking to make sure (first argument, title, should be in quotes, and second argument, choices, should be in brackets)
 		if(
 			args.length > 1 &&
@@ -217,7 +220,7 @@ client.on('message', message => {
 
 		} else {
 			console.error("Message format was invalid.");
-			message.channel.send("Sorry, there was a problem with your messsage format. I was unable to make a poll.");
+			message.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.trigger} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
 		}
 	}
 });
