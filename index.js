@@ -46,8 +46,8 @@ function Poll(opt) {
 	this.restrictRole = args.role || false;
 	this.dontCloseEarly = args.lo || args.leaveopen || args.dontcloseearly || false;
 
-	this.footNote = opt.notes || '';
-	footNote += `This is Poll \`${this.id}\`.`;
+	this.footNote = opt.notes || ' ';
+	this.footNote += `This is Poll \`${this.id}\`.`;
 
 	this.open = false;
 	this.totalVotes = 0;
@@ -118,14 +118,20 @@ client.on('message', message => {
 
 	if(args.shift().toLowerCase() === '!newpoll') {
 		// Do a little format checking to make sure (first argument, title, should be in quotes, and second argument, choices, should be in brackets)
-		if(args[0].charAt(0) !== '"' || args[0].charAt(-1) !== '"' || args[1].charAt(0) !== '[' || args[0].charAt(-1) !== ']') {
+		if(
+			args.length > 1 &&
+			args[0].charAt(0) === '"' &&
+			args[0].charAt(args[0].length - 1) === '"' &&
+			args[1].charAt(0) === '[' &&
+			args[1].charAt(args[1].length - 1) === ']'
+		) {
 			
 			// Title of the poll, without quotes
-			var title = args.shift().slice(1, -1);
+			var title = args.shift().slice(1,-1);
 			// Array of poll choices, trimmed
-			var choices = args.shift().slice(1, -1).split(',').map(Function.prototype.call, String.prototype.trim);
+			var choices = args.shift().slice(1,-1).split(',').map(Function.prototype.call, String.prototype.trim);
 			var options = {
-				title: title,
+				name: title,
 				choices: choices,
 				emojiType: 'letters',
 				timeout: defaults.timeout,
@@ -137,7 +143,6 @@ client.on('message', message => {
 
 			// args should now just have the arguments
 			args.forEach((arg, index) => {
-
 				// If it's a new argument (starts with '--')
 				if(arg.charAt(0) === '-' && arg.charAt(1) === '-') {
 
@@ -211,6 +216,7 @@ client.on('message', message => {
 			console.log(new Poll(options));
 
 		} else {
+			console.error("Message format was invalid.");
 			message.channel.send("Sorry, there was a problem with your messsage format. I was unable to make a poll.");
 		}
 	}

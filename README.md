@@ -1,7 +1,7 @@
 # discord-votemaster
 This is the beginnings of a complex polling bot for Discord, allowing for advanced polls with many options, vote restrictions, and even graphs of results. Messages will be formatting like so:
 
-`!!newpoll "poll name" [Option 1, Option 2] --yn|yesno --num|numbers --lock --blind --time|timeout 5 --chart|graph --mult|multiple --rxn|reactions --maybe|idk --pub|public --role "role" --lo|leaveopen|dontcloseearly --color 2555834`
+`!newpoll "poll name" [Option 1, Option 2] --yn|yesno --num|numbers --lock --blind --time|timeout 5 --chart|graph --mult|multiple --rxn|reactions --maybe|idk --pub|public --role "role" --lo|leaveopen|dontcloseearly --color 2555834`
 
 
 * `yn`: convert to a yes/no poll (has no effect if more than two options)
