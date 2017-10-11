@@ -5,9 +5,9 @@ const client = new Discord.Client();
 const defaults = {
 	timeout: 30,
 	color: 2555834,
-	trigger: '!newpoll'
+	triggers: {newPoll: '!newpoll', vote: '!vote'}
 };
-var pollIndex = 0;
+var pollIndex = 0, polls = new Map();
 
 // The corresponding emojis are used as unique keys for choices within each poll object
 const emoji = {
@@ -47,6 +47,7 @@ class Poll {
 		this.allowMultipleVotes = this.reactionVoting || args.mult || args.multiple || false;
 		this.restrictRole = args.role || false;
 		this.dontCloseEarly = args.lo || args.leaveopen || args.dontcloseearly || false;
+		this.timeout = opt.timeout || 30;
 
 		this.footNote = opt.notes || ' ';
 		this.footNote += `This is Poll \`${this.id}\`.`;
@@ -55,12 +56,16 @@ class Poll {
 		this.totalVotes = 0;
 
 		this.voters = new Map();
+
+		this.server = opt.server;
 	}
 
 	// Function to initiate timer
 	startTimer() {
 		this.open = true;
-		setTimeout(this.close().bind(this), opt.timeout * 60 * 1000);
+		setTimeout(function() {
+			this.open = false;
+		}.bind(this), this.timeout * 60 * 1000);
 	}
 
 	// Log votes (if the poll is open and unlocked/user hasn't voted)
@@ -71,6 +76,12 @@ class Poll {
 					success: false,
 					reason: 'lock',
 					message: "Sorry, this is a locked poll (you can't edit your vote) and you've already voted."
+				};
+			} else if(!this.choices.get(emoji)) {
+				return {
+					success: false,
+					reason: 'invalid',
+					message: "That option is not a valid choice, so I can't log your vote. Try sending just the emoji that corresponds with the choice."
 				};
 			} else {
 				this.choices.get(emoji).votes++;
@@ -105,7 +116,7 @@ class Poll {
 		} else return false;
 	}
 
-	generateChart() {
+	get chart() {
 		// TODO generate charts of results
 		return null;
 	}
@@ -119,7 +130,8 @@ client.on('message', message => {
 	// Array with: anything in brackets, anything in quotes, anything separated by spaces (in that hierarchy)
 	var args = message.content.trim().match(/(?:[^\s"\[]+|\[[^\[]*\]|"[^"]*")+/g);
 
-	if(args.shift().toLowerCase() === defaults.trigger) {
+	if(args[0].toLowerCase() === defaults.triggers.newPoll) {
+		args.shift();
 		// Do a little format checking to make sure (first argument, title, should be in quotes, and second argument, choices, should be in brackets)
 		if(
 			args.length > 1 &&
@@ -141,7 +153,8 @@ client.on('message', message => {
 				color: defaults.color,
 				arguments: {},
 				role: false,
-				notes: ''
+				notes: '',
+				server: message.guild
 			};
 
 			// args should now just have the arguments
@@ -216,12 +229,46 @@ client.on('message', message => {
 				}
 			});
 
-			console.log(new Poll(options));
+			var newPoll = new Poll(options);
+			newPoll.startTimer();
+			polls.set(newPoll.id, newPoll);
+			console.log(polls);
 
 		} else {
 			console.error("Message format was invalid.");
 			message.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.trigger} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
 		}
+
+	} else if(args[0].toLowerCase() == defaults.triggers.vote) {
+		args.shift(0);
+
+		var activePollsInServer = [], voteResponse;
+		polls.forEach(poll => {
+			if(poll.open && poll.server == message.guild) {
+				activePollsInServer.push(poll.id);
+			}
+		});
+
+		if(activePollsInServer.length === 0) {
+			voteResponse = `There aren't any active polls in this server right now, so you can't vote.`;
+
+		} else if(isNaN(args[0].trim())) {
+			// Only the vote emoji was supplied
+			if(activePollsInServer.length === 1) {
+				voteResponse = polls.get(activePollsInServer[0]).vote(args[0], message.author).message;
+			} else {
+				voteResponse = 'Sorry, I don\'t know which poll to vote on. Please specify the poll id number before your vote.';
+			}
+		} else {
+			// The ID and emoji were supplied
+			if(polls.get(args[0])) {
+				voteResponse = polls.get(args[0]).vote(args[1], message.author).message;
+			} else {
+				voteResponse = 'Sorry, that\'s not a valid poll to vote on. Please specify the poll id number before your vote.';
+			}
+ 		}
+
+ 		message.channel.send(voteResponse);
 	}
 });
 
