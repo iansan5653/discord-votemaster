@@ -12,11 +12,12 @@ var pollIndex = 0, polls = new Map();
 
 // The corresponding emojis are used as unique keys for choices within each poll object
 const emoji = {
-	numbers: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'],
+	numbers: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+		.map((value, index) => [String(index), `:${value}:`]),
 	letters: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-		.map(value => 'regional_indicator_' + value),
-	yn: ['white_check_mark','negative_squared_cross_mark'],
-	maybe: 'shrug'
+		.map(value => [value, `:regional_indicator_${value}:`]),
+	yn: [['yes','Yes'],['no','No']],
+	maybe: ['maybe','Maybe']
 };
 
 class Poll {
@@ -28,14 +29,16 @@ class Poll {
 
 		this.choices = new Map();
 		opt.choices.forEach((value, index) => {
-			this.choices.set(emoji[opt.emojiType][index], {
+			this.choices.set(emoji[opt.emojiType][index][0], {
 				name: value,
+				emoji: emoji[opt.emojiType][index][1],
 				votes: 0
 			});
 		});
 		if(args.maybe || args.idk) {
-			this.choices.set(emoji.maybe, {
+			this.choices.set(emoji.maybe[0], {
 				name: 'I don\'t know.',
+				emoji: emoji.maybe[1],
 				votes: 0
 			});
 		}
@@ -72,7 +75,8 @@ class Poll {
 	}
 
 	// Log votes (if the poll is open and unlocked/user hasn't voted)
-	vote(emoji, user) {
+	vote(key, user) {
+		console.log(key, this.choices);
 		if(this.open) {
 			if(this.lock && this.voters.get(user.id)) {
 				return {
@@ -80,26 +84,26 @@ class Poll {
 					reason: 'lock',
 					message: "Sorry, this is a locked poll (you can't edit your vote) and you've already voted."
 				};
-			} else if(!this.choices.get(emoji)) {
+			} else if(!this.choices.get(key)) {
 				return {
 					success: false,
 					reason: 'invalid',
-					message: "That option is not a valid choice, so I can't log your vote. Try sending just the emoji that corresponds with the choice."
+					message: "That option is not a valid choice, so I can't log your vote. Try sending just the letter, number, or word that corresponds with the choice."
 				};
 			} else {
-				this.choices.get(emoji).votes++;
+				this.choices.get(key).votes++;
 				// While we technically *could* use the user object as the key, that would be difficult to access. id should be unique.
 				this.voters.set(user.id, {
 					user: user,
 					vote: {
 						time: new Date(),
-						choice: emoji
+						choice: key
 					}
 				});
 				return {
 					success: true,
 					reason: '',
-					message: `Great, I logged your vote for ${this.choices.get(emoji).name}!`
+					message: `Great, I logged your vote for ${this.choices.get(key).name}!`
 				};
 			}
 		} else {
@@ -127,12 +131,12 @@ class Poll {
 
 function generateDiscordEmbed(poll) {
 	var choiceList = ``;
-	poll.choices.forEach((choice, emoji) => {
-		choiceList += `:${emoji}: - ${choice.name} \n`;
+	poll.choices.forEach((choice, key) => {
+		choiceList += `${choice.emoji} - ${choice.name} \n`;
 	});
 	var embed = {
 		title: `Poll ${poll.id}: ${poll.name}`,
-		description: `To vote, reply with\`!vote :emoji:\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.entries().next()[0]}". If multiple polls are open, you\'ll have to specify which one using its number: \`!vote ${poll.id} :emoji:\`.`,
+		description: `To vote, reply with\`!vote :emoji:\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.keys().next().value}". If multiple polls are open, you\'ll have to specify which one using its number and a pound sign: \`!vote #${poll.id} :emoji:\`.`,
 		color: poll.color,
 		timestamp: poll.timeCreated,
 		footer: {
@@ -210,7 +214,6 @@ client.on('message', message => {
 							// If the next element is a valid RGB int code
 							if(!isNaN(nextEl) && +nextEl >= 0 && +nextEl <= 256*256*256) {
 								options.color = +nextEl;
-								console.log(options.color);
 								args.slice(index + 1, 1);
 							} else {
 								let errorMessage = `A color argument was found, but the next item was not an RGB int code, so this was ignored.`;
@@ -283,19 +286,24 @@ client.on('message', message => {
 			if(activePollsInServer.length === 0) {
 				voteResponse = `There aren't any active polls in this server right now, so you can't vote.`;
 
-			} else if(isNaN(args[0].trim())) {
-				// Only the vote emoji was supplied
+			} else if(args[0].charAt(0) !== '#') {
+				// Only the vote was supplied
 				if(activePollsInServer.length === 1) {
-					voteResponse = polls.get(activePollsInServer[0]).vote(args[0], message.author).message;
+					voteResponse = polls.get(activePollsInServer[0]).vote(args[0].toLowerCase(), message.author).message;
 				} else {
-					voteResponse = 'Sorry, I don\'t know which poll to vote on. Please specify the poll id number before your vote.';
+					// TODO dynamic examples
+					voteResponse = 'Sorry, I don\'t know which poll to vote on. Please specify the poll id number using a pound sign and a number (ie \'!vote #1 A\') before your vote.';
 				}
+
 			} else {
-				// The ID and emoji were supplied
-				if(polls.get(args[0])) {
-					voteResponse = polls.get(args[0]).vote(args[1], message.author).message;
+				// The ID and vote were supplied
+				var pollID = +(args[0].substr(1));
+
+				if(activePollsInServer.includes(pollID)) {
+					voteResponse = polls.get(pollID).vote(args[1].toLowerCase(), message.author).message;
 				} else {
-					voteResponse = 'Sorry, that\'s not a valid poll to vote on. Please specify the poll id number before your vote.';
+					// TODO dynamic examples
+					voteResponse = 'Sorry, that\'s not a valid poll to vote on. Please specify the poll id number (ie \'!vote #1 A\') before your vote.';
 				}
 	 		}
 
