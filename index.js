@@ -26,7 +26,6 @@ class Poll {
 		this.id = pollIndex;
 			pollIndex++;
 
-		// Choices is a map so it can be easily iterated
 		this.choices = new Map();
 		opt.choices.forEach((value, index) => {
 			this.choices.set(emoji[opt.emojiType][index], {
@@ -52,7 +51,7 @@ class Poll {
 		this.color = opt.color;
 
 		this.footNote = opt.notes || ' ';
-		this.footNote += `This is Poll ${this.id}.`;
+		this.footNote += `| This is Poll #${this.id}. It will expire in ${this.timeout} minutes.`;
 
 		this.open = false;
 		this.totalVotes = 0;
@@ -133,7 +132,7 @@ function generateDiscordEmbed(poll) {
 	});
 	var embed = {
 		title: `Poll ${poll.id}: ${poll.name}`,
-		description: `To vote, reply with\`!vote :emoji:\`. For example, "!vote ${poll.choices.entries().next()[0]}". If multiple polls are open, you\'ll have to specify which one using its ID number: \`!vote ${poll.id} :emoji:\`.`,
+		description: `To vote, reply with\`!vote :emoji:\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.entries().next()[0]}". If multiple polls are open, you\'ll have to specify which one using its number: \`!vote ${poll.id} :emoji:\`.`,
 		color: poll.color,
 		timestamp: poll.timeCreated,
 		footer: {
@@ -268,7 +267,7 @@ client.on('message', message => {
 
 			} else {
 				console.error("Message format was invalid.");
-				message.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.trigger} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
+				message.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.triggers.newPoll} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
 			}
 
 		} else if(args[0].toLowerCase() == defaults.triggers.vote) {
@@ -301,9 +300,11 @@ client.on('message', message => {
 	 		}
 
 	 		message.channel.send(voteResponse);
+
+	 	} else if(args[0].toLowerCase() == '!pollping') {
+	 		message.channel.send('PONG!'); //for testing connection
 	 	}
 	}
 });
 
 client.login(private.token);
-
