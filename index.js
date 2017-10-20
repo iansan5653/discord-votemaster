@@ -5,7 +5,7 @@ const client = new Discord.Client();
 const defaults = {
 	timeout: 30,
 	color: 2555834,
-	triggers: {newPoll: '!newpoll', vote: '!vote'},
+	triggers: {newPoll: '!newpoll', vote: '!vote', results: '!results'},
 	appName: 'Votemaster'
 };
 var pollIndex = 0, polls = new Map();
@@ -16,8 +16,8 @@ const emoji = {
 		.map((value, index) => [String(index), `:${value}:`]),
 	letters: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
 		.map(value => [value, `:regional_indicator_${value}:`]),
-	yn: [['yes','Yes'],['no','No']],
-	maybe: ['maybe','Maybe']
+	yn: [['yes','**Yes**'],['no','**No**']],
+	maybe: ['maybe','**Maybe**']
 };
 
 class Poll {
@@ -45,7 +45,6 @@ class Poll {
 
 		this.disallowEdits = args.lock || false;
 		this.blind = args.blind || false;
-		this.chartRequested = args.chart || args.graph || false;
 		this.reactionVoting = args.reactions || args.rxn || false;
 		this.allowMultipleVotes = this.reactionVoting || args.mult || args.multiple || false;
 		this.restrictRole = args.role || false;
@@ -54,7 +53,7 @@ class Poll {
 		this.color = opt.color;
 
 		this.footNote = opt.notes || ' ';
-		this.footNote += `| This is Poll #${this.id}. It will expire in ${this.timeout} minutes.`;
+		this.footNote += `${opt.notes ? '| ' : ''}This is Poll #${this.id}. It will expire in ${this.timeout} minutes.`;
 
 		this.open = false;
 		this.totalVotes = 0;
@@ -90,6 +89,25 @@ class Poll {
 					reason: 'invalid',
 					message: "That option is not a valid choice, so I can't log your vote. Try sending just the letter, number, or word that corresponds with the choice."
 				};
+			} else if(this.voters.get(user.id)) {
+				// User has already voted, we need to change their vote
+				let oldVoter = this.voters.get(user.id);
+				this.choices.get(oldVoter.vote.choice).votes--;
+				
+				this.choices.get(key).votes++;
+				this.voters.set(user.id, {
+					user: user,
+					vote: {
+						time: new Date(),
+						choice: key
+					}
+				});
+				return {
+					success: true,
+					reason: '',
+					message: `Great, I changed your vote to "${this.choices.get(key).name}"!`
+				};
+
 			} else {
 				this.choices.get(key).votes++;
 				// While we technically *could* use the user object as the key, that would be difficult to access. id should be unique.
@@ -103,7 +121,7 @@ class Poll {
 				return {
 					success: true,
 					reason: '',
-					message: `Great, I logged your vote for ${this.choices.get(key).name}!`
+					message: `Great, I logged your vote for "${this.choices.get(key).name}"!`
 				};
 			}
 		} else {
@@ -129,27 +147,82 @@ class Poll {
 	}
 }
 
-function generateDiscordEmbed(poll) {
-	var choiceList = ``;
+function generateDiscordEmbed(poll, type) {
+	var embed = {}, choiceList = ``, resultsList = ``;
 	poll.choices.forEach((choice, key) => {
 		choiceList += `${choice.emoji} - ${choice.name} \n`;
+		resultsList += `***${choice.votes} votes*** \n`;
 	});
-	var embed = {
-		title: `Poll ${poll.id}: ${poll.name}`,
-		description: `To vote, reply with\`!vote :emoji:\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.keys().next().value}". If multiple polls are open, you\'ll have to specify which one using its number and a pound sign: \`!vote #${poll.id} :emoji:\`.`,
-		color: poll.color,
-		timestamp: poll.timeCreated,
-		footer: {
-			text: poll.footNote
-		},
-		author: {
-			name: defaults.appName
-		},
-		fields: [{
-			name: `Choices:`,
-			value: choiceList
-		}]
-	};
+
+	switch(type) {
+		case 'poll':
+			embed = {
+				title: `Poll ${poll.id}: ${poll.name}`,
+				description: `To vote, reply with\`!vote choice\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.keys().next().value}". If multiple polls are open, you\'ll have to specify which one using its number and a pound sign: \`!vote #${poll.id} choice\`.`,
+				color: poll.color,
+				timestamp: poll.timeCreated,
+				footer: {
+					text: poll.footNote
+				},
+				author: {
+					name: defaults.appName
+				},
+				fields: [{
+					name: `Choices:`,
+					value: choiceList
+				}]
+			};
+			break;
+		case 'results':
+			//TODO: Order choices in results based on number of votes
+
+			embed = {
+				title: `*Results* - Poll ${poll.id}: ${poll.name}`,
+				description: poll.open ? `This poll is still open, so these results may change.` : `This poll has closed and cannot be voted on.`,
+				color: poll.color,
+				timestamp: new Date(),
+				footer: {
+					text: `For more detailed results, use the \`--users\` flag.`
+				},
+				author: {
+					name: defaults.appName
+				},
+				fields: [{
+					name: `Choices:`,
+					value: choiceList,
+					inline: true
+				}, {
+					name: `Results:`,
+					value: resultsList,
+					inline: true
+				}]
+			};
+			break;
+		case 'detailResults':
+			//TODO: Order choices in results based on number of votes
+
+			embed = {
+				title: `*Results* - Poll ${poll.id}: ${poll.name}`,
+				description: poll.open ? `This poll is still open, so these results may change.` : `This poll has closed and cannot be voted on.`,
+				color: poll.color,
+				timestamp: new Date(),
+				footer: {
+					text: `We don't have detailed results capability yet.`
+				},
+				author: {
+					name: defaults.appName
+				},
+				fields: [{
+					name: `Choices:`,
+					value: choiceList,
+					inline: true
+				}, {
+					name: `Results:`,
+					value: resultsList,
+					inline: true
+				}]
+			};
+	}
 
 	return embed;
 }
@@ -265,8 +338,8 @@ client.on('message', message => {
 				newPoll.startTimer();
 				polls.set(newPoll.id, newPoll);
 
-				var embed = generateDiscordEmbed(newPoll);
-				message.channel.send("OK, here's your poll:", {embed});
+				let embed = generateDiscordEmbed(newPoll, 'poll');
+				message.channel.send('OK, here\'s your poll:', {embed});
 
 			} else {
 				console.error("Message format was invalid.");
@@ -297,7 +370,7 @@ client.on('message', message => {
 
 			} else {
 				// The ID and vote were supplied
-				var pollID = +(args[0].substr(1));
+				let pollID = +(args[0].substr(1));
 
 				if(activePollsInServer.includes(pollID)) {
 					voteResponse = polls.get(pollID).vote(args[1].toLowerCase(), message.author).message;
@@ -308,6 +381,30 @@ client.on('message', message => {
 	 		}
 
 	 		message.channel.send(voteResponse);
+
+	 	} else if(args[0].toLowerCase() == defaults.triggers.results) {
+	 		args.shift();
+
+	 		var response;
+
+	 		if(args[0].charAt(0) !== '#') { 
+	 			message.channel.send('Sorry, I don\'t know which poll to get results for. Please specify the poll id number using a pound sign and number (ie \'!results #1\').');
+	 		} else {
+	 			let pollID = +(args[0].substr(1));
+
+	 			if(polls.get(pollID)) {
+	 				let embed;
+	 				if(args[1] && (args[1].slice(2) === 'detailed' || args[1].slice(2) === 'users')) {
+	 					embed = generateDiscordEmbed(polls.get(pollID), 'detailResults');
+	 				} else {
+	 					embed = generateDiscordEmbed(polls.get(pollID), 'results');
+	 				}
+	 				
+	 				message.channel.send('OK, here\'s the results:', {embed});
+	 			} else {
+	 				message.channel.send('Sorry, that poll doesn\'t seem to exist.');
+	 			}
+	 		}
 
 	 	} else if(args[0].toLowerCase() == '!pollping') {
 	 		message.channel.send('PONG!'); //for testing connection
