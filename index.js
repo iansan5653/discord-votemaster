@@ -85,7 +85,7 @@ class Poll {
     /** Function to initiate timer */
     startTimer() {
         this.open = true;
-        setTimeout(function() {
+        setTimeout(function () {
             this.open = false;
         }.bind(this), this.timeout * 60 * 1000);
     }
@@ -192,73 +192,73 @@ function generateDiscordEmbed(poll, type) {
     });
 
     switch (type) {
-    case EMBED_TYPES.POLL:
-        embed = {
-            title: `Poll ${poll.id}: ${poll.name}`,
-            description: `To vote, reply with\`!vote choice\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.keys().next().value}". If multiple polls are open, you\'ll have to specify which one using its number and a pound sign: \`!vote #${poll.id} choice\`.`,
-            color: poll.color,
-            timestamp: poll.timeCreated,
-            footer: {
-                text: poll.footNote
-            },
-            author: {
-                name: defaults.appName
-            },
-            fields: [{
-                name: `Choices:`,
-                value: choiceList
-            }]
-        };
-        break;
-    case EMBED_TYPES.RESULTS:
-        // TODO: Order choices in results based on number of votes
+        case EMBED_TYPES.POLL:
+            embed = {
+                title: `Poll ${poll.id}: ${poll.name}`,
+                description: `To vote, reply with\`!vote choice\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.keys().next().value}". If multiple polls are open, you\'ll have to specify which one using its number and a pound sign: \`!vote #${poll.id} choice\`.`,
+                color: poll.color,
+                timestamp: poll.timeCreated,
+                footer: {
+                    text: poll.footNote
+                },
+                author: {
+                    name: defaults.appName
+                },
+                fields: [{
+                    name: `Choices:`,
+                    value: choiceList
+                }]
+            };
+            break;
+        case EMBED_TYPES.RESULTS:
+            // TODO: Order choices in results based on number of votes
 
-        embed = {
-            title: `*Results* - Poll ${poll.id}: ${poll.name}`,
-            description: poll.open ? `This poll is still open, so these results may change.` : `This poll has closed and cannot be voted on.`,
-            color: poll.color,
-            timestamp: new Date(),
-            footer: {
-                text: `For more detailed results, use the \`--users\` flag.`
-            },
-            author: {
-                name: defaults.appName
-            },
-            fields: [{
-                name: `Choices:`,
-                value: choiceList,
-                inline: true
-            }, {
-                name: `Results:`,
-                value: resultsList,
-                inline: true
-            }]
-        };
-        break;
-    case EMBED_TYPES.DETAIL_RESULTS:
-        // TODO: Order choices in results based on number of votes
+            embed = {
+                title: `*Results* - Poll ${poll.id}: ${poll.name}`,
+                description: poll.open ? `This poll is still open, so these results may change.` : `This poll has closed and cannot be voted on.`,
+                color: poll.color,
+                timestamp: new Date(),
+                footer: {
+                    text: `For more detailed results, use the \`--users\` flag.`
+                },
+                author: {
+                    name: defaults.appName
+                },
+                fields: [{
+                    name: `Choices:`,
+                    value: choiceList,
+                    inline: true
+                }, {
+                    name: `Results:`,
+                    value: resultsList,
+                    inline: true
+                }]
+            };
+            break;
+        case EMBED_TYPES.DETAIL_RESULTS:
+            // TODO: Order choices in results based on number of votes
 
-        embed = {
-            title: `*Results* - Poll ${poll.id}: ${poll.name}`,
-            description: poll.open ? `This poll is still open, so these results may change.` : `This poll has closed and cannot be voted on.`,
-            color: poll.color,
-            timestamp: new Date(),
-            footer: {
-                text: `We don't have detailed results capability yet.`
-            },
-            author: {
-                name: defaults.appName
-            },
-            fields: [{
-                name: `Choices:`,
-                value: choiceList,
-                inline: true
-            }, {
-                name: `Results:`,
-                value: resultsList,
-                inline: true
-            }]
-        };
+            embed = {
+                title: `*Results* - Poll ${poll.id}: ${poll.name}`,
+                description: poll.open ? `This poll is still open, so these results may change.` : `This poll has closed and cannot be voted on.`,
+                color: poll.color,
+                timestamp: new Date(),
+                footer: {
+                    text: `We don't have detailed results capability yet.`
+                },
+                author: {
+                    name: defaults.appName
+                },
+                fields: [{
+                    name: `Choices:`,
+                    value: choiceList,
+                    inline: true
+                }, {
+                    name: `Results:`,
+                    value: resultsList,
+                    inline: true
+                }]
+            };
     }
 
     return embed;
@@ -271,20 +271,17 @@ client.on('ready', () => {
 client.on('message', discordMessage => {
     if (discordMessage.content) {
         const message = new messageProcessing.Message(discordMessage.content);
-        const args = message.args;
+
         if (message.command === defaults.triggers.newPoll) {
-            // Do a little format checking to make sure (first argument, title, should be in quotes, and second argument, choices, should be in brackets)
             if (
-                args.length > 1 &&
-                args[0].charAt(0) === '"' &&
-                args[0].charAt(args[0].length - 1) === '"' &&
-                args[1].charAt(0) === '[' &&
-                args[1].charAt(args[1].length - 1) === ']'
+                message.args.length >= 2 &&
+                message.args[0].type === messageProcessing.ARGUMENT_TYPES.STRING &&
+                message.args[1].type === messageProcessing.ARGUMENT_TYPES.LIST
             ) {
                 // Title of the poll, without quotes
-                const title = args.shift().slice(1, -1);
+                const title = message.args[0].parsed;
                 // Array of poll choices, trimmed
-                const choices = args.shift().slice(1, -1).split(',').map(Function.prototype.call, String.prototype.trim);
+                const choices = message.args[1].parsed;
                 const options = {
                     name: title,
                     choices: choices,
@@ -297,51 +294,56 @@ client.on('message', discordMessage => {
                     server: discordMessage.guild
                 };
 
-                // args should now just have the arguments
-                args.forEach((arg, index) => {
-                    // If it's a new argument (starts with '--')
-                    if (arg.charAt(0) === '-' && arg.charAt(1) === '-') {
-                        // Remove '--'
-                        arg = arg.slice(2);
+                for (let i = 2; i < message.args.length; i++) {
+                    const arg = message.args[i];
+                    const nextArg = message.args[i + 1] || null;
 
-                        if (arg === 'time' || arg === 'timeout') {
-                            const nextEl = args[index + 1];
-                            // If the next element is a nunber
-                            if (!isNaN(nextEl) && nextEl > 0) {
-                                options.timeout = +nextEl;
-                                args.slice(index + 1, 1);
+                    if (arg.type === messageProcessing.ARGUMENT_TYPES.FLAG) {
+                        switch (arg.parsed) {
+                        case 'time':
+                        case 'timeout':
+                            if (nextArg &&
+                                nextArg.type === messageProcessing.ARGUMENT_TYPES.NUMBER &&
+                                nextArg.parsed > 0) {
+                                options.timeout = nextArg.parsed;
                             } else {
                                 const errorMessage = `A timeout argument was found, but the next item was not a valid number, so the poll defaulted to ${defaults.timeout} minutes. `;
                                 console.warn(errorMessage);
                                 options.notes += errorMessage;
                             }
-                        } else if (arg === 'color' || arg === 'colour') {
-                            const nextEl = args[index + 1];
-                            // If the next element is a valid RGB int code
-                            if (!isNaN(nextEl) && +nextEl >= 0 && +nextEl <= 256 * 256 * 256) {
-                                options.color = +nextEl;
-                                args.slice(index + 1, 1);
+                            break;
+
+                        case 'color':
+                        case 'colour':
+                            if (nextArg &&
+                                nextArg.type === messageProcessing.ARGUMENT_TYPES.NUMBER &&
+                                nextArg.parsed >= 0 &&
+                                nextArg.parsed <= 256**3
+                            ) {
+                                options.color = nextArg.parsed;
                             } else {
-                                const errorMessage = `A color argument was found, but the next item was not an RGB int code, so this was ignored.`;
+                                const errorMessage = `A color argument was found, but the next item was not a valid RGB int code, so this was ignored.`;
                                 console.warn(errorMessage);
                                 options.notes += errorMessage;
                             }
-                        } else if (arg === 'role') {
-                            const nextEl = args[index + 1];
-                            // If the next element is surrounded by double quotes
-                            if (args.find(el => el == 'rxn' || el === 'reactions')) {
+                            break;
+
+                        case 'role':
+                            if (mesage.args.find(a => a.parsed == 'rxn' || a.parsed === 'reactions')) {
                                 const errorMessage = `A "role" argument was found, but the reactions option was enabled, so voting can't be restricted to roles.`;
                                 console.warn(errorMessage);
                                 footNote += errorMessage;
-                            } else if (nextEl.charAt(0) === '"' && nextEl.charAt(nextEl.length - 1) === '"') {
-                                options.role = nextEl.slice(1, -1);
-                                args.slice(index + 1, 1);
+                            } else if (nextArg && nextArg.type === messageProcessing.ARGUMENT_TYPES.STRING) {
+                                options.role = nextArg.parsed;
                             } else {
-                                const errorMessage = `A "role" argument was found, but the next item was not a string surrounded by "double quotes", so this was ignored. `;
+                                const errorMessage = `A "role" argument was found, but the next item was not a valid parameter, so this was ignored. `;
                                 console.warn(errorMessage);
                                 options.notes += errorMessage;
                             }
-                        } else if (arg === 'numbers' || arg === 'num') {
+                            break;
+
+                        case 'numbers':
+                        case 'num':
                             if (choices.length <= emoji.numbers.length) {
                                 options.emojiType = 'numbers';
                             } else {
@@ -349,7 +351,10 @@ client.on('message', discordMessage => {
                                 console.warn(errorMessage);
                                 options.notes += errorMessage;
                             }
-                        } else if (arg === 'yesno' || arg === 'yn') {
+                            break;
+
+                        case 'yesno':
+                        case 'yn':
                             if (choices.length <= emoji.yn.length) {
                                 options.emojiType = 'yn';
                             } else {
@@ -357,11 +362,13 @@ client.on('message', discordMessage => {
                                 console.warn(errorMessage);
                                 options.notes += errorMessage;
                             }
-                        } else {
+                            break;
+
+                        default:
                             options.arguments[arg] = true;
                         }
                     }
-                });
+                }
 
                 const newPoll = new Poll(options);
                 newPoll.startTimer();

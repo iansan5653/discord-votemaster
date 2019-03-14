@@ -150,3 +150,4 @@ class MessageArg {
 
 exports.Message = Message;
 exports.MessageArg = Message;
+exports.ARGUMENT_TYPES = ARGUMENT_TYPES;
