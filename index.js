@@ -382,34 +382,26 @@ client.on('message', discordMessage => {
                 discordMessage.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.triggers.newPoll} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
             }
         } else if (message.command == defaults.triggers.vote) {
-            const activePollsInServer = [];
+            const activePollsInServer = polls.filter(poll =>
+                poll.open && poll.server === discordMessage.guild);
             let voteResponse;
-            polls.forEach(poll => {
-                if (poll.open && poll.server == discordMessage.guild) {
-                    activePollsInServer.push(poll.id);
-                }
-            });
 
             if (activePollsInServer.length === 0) {
                 voteResponse = `There aren't any active polls in this server right now, so you can't vote.`;
-            } else if (args[0].charAt(0) !== '#') {
-                // Only the vote was supplied
-                if (activePollsInServer.length === 1) {
-                    voteResponse = polls.get(activePollsInServer[0]).vote(args[0].toLowerCase(), discordMessage.author).message;
-                } else {
-                    // TODO dynamic examples
-                    voteResponse = 'Sorry, I don\'t know which poll to vote on. Please specify the poll id number using a pound sign and a number (ie \'!vote #1 A\') before your vote.';
-                }
+            } else if (message.args.length === 0) {
+                voteResponse = 'You need to provide a poll ID and vote value to vote.';
+            } else if (activePollsInServer.length > 1 &&
+                message.args[0].type !== messageProcessing.ARGUMENT_TYPES.NUMBER) {
+                voteResponse = 'To vote, you need to specify a poll id.';
+            } else if ((activePollsInServer.length === 1 && message.args[0].type !== messageProcessing.ARGUMENT_TYPES.OTHER) ||
+                message.args[1].type !== messageProcessing.ARGUMENT_TYPES.OTHER) {
+                voteResponse = 'To vote, you need to specify a vote.';
+            } else if (activePollsInServer.length === 1 && message.args[0].type === messageProcessing.ARGUMENT_TYPES.OTHER) {
+                voteResponse = polls.get(activePollsInServer[0]).vote(message.args[0].parsed.toLowerCase(), discordMessage.author).message;
+            } else if (!activePollsInServer.includes(message.args[0].parsed)) {
+                voteResponse = 'That poll either doesn\'t exist or isn\'t currently active, so you can\'t vote on it.';
             } else {
-                // The ID and vote were supplied
-                const pollID = +(args[0].substr(1));
-
-                if (activePollsInServer.includes(pollID)) {
-                    voteResponse = polls.get(pollID).vote(args[1].toLowerCase(), discordMessage.author).message;
-                } else {
-                    // TODO dynamic examples
-                    voteResponse = 'Sorry, that\'s not a valid poll to vote on. Please specify the poll id number (ie \'!vote #1 A\') before your vote.';
-                }
+                voteResponse = polls.get(message.args[0].parsed).vote(args[1].toLowerCase(), discordMessage.author).message;
             }
 
             discordMessage.channel.send(voteResponse);

@@ -54,7 +54,8 @@ class Message {
      * @return {[string]}
      */
     static breakComponents(rawMessage) {
-        return rawMessage.content.trim().match(/(?:[^\s"\[]+|\[[^\[]*\]|"[^"]*")+/g);
+        return rawMessage.content.trim()
+            .match(/(?:[^\s"\[]+|\[[^\[]*\]|"[^"]*")+/g);
     }
 }
 
@@ -81,7 +82,7 @@ class MessageArg {
     /**
      * Usable value. Exact form depends on type.
      * @see {@link MessageArg.parse} for details.
-     * @return {*}
+     * @return {string | number | [string]}
      */
     get parsed() {
         return MessageArg.parse(this.raw);
@@ -128,7 +129,7 @@ class MessageArg {
      * @param {string} rawArgument The unparsed argument.
      * @param {ArgumentType} [type] Type of argument. If not provided, will
      *   determine.
-     * @return {*}
+     * @return {string | number | [string]}
      */
     static parse(rawArgument, type) {
         if (!type) type = MessageArg.determineType(rawArgument);
