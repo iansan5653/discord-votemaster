@@ -60,3 +60,5 @@ typings/
 # private key
 private.js
 
+# VSCode config
+.vscode
