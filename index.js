@@ -20,6 +20,12 @@ const emoji = {
 	maybe: ['maybe','**Maybe**']
 };
 
+const EMBED_TYPES = Object.freeze({
+    POLL: Symbol('Poll Embed Type'),
+    RESULTS: Symbol('Results Embed Type'),
+    DETAIL_RESULTS: Symbol('Detailed Results Embed Type')
+})
+
 class Poll {
 	constructor(opt) {
 		var args = opt.arguments;
@@ -155,7 +161,7 @@ function generateDiscordEmbed(poll, type) {
 	});
 
 	switch(type) {
-		case 'poll':
+		case EMBED_TYPES.POLL:
 			embed = {
 				title: `Poll ${poll.id}: ${poll.name}`,
 				description: `To vote, reply with\`!vote choice\` within the next ${poll.timeout} minutes. For example, "!vote ${poll.choices.keys().next().value}". If multiple polls are open, you\'ll have to specify which one using its number and a pound sign: \`!vote #${poll.id} choice\`.`,
@@ -173,7 +179,7 @@ function generateDiscordEmbed(poll, type) {
 				}]
 			};
 			break;
-		case 'results':
+		case EMBED_TYPES.RESULTS:
 			//TODO: Order choices in results based on number of votes
 
 			embed = {
@@ -198,7 +204,7 @@ function generateDiscordEmbed(poll, type) {
 				}]
 			};
 			break;
-		case 'detailResults':
+		case EMBED_TYPES.DETAIL_RESULTS:
 			//TODO: Order choices in results based on number of votes
 
 			embed = {
