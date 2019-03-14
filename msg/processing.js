@@ -11,7 +11,7 @@ class Message {
     constructor(rawMessage) {
         /** The original message string. */
         this.rawMessage = rawMessage;
-        let messageComponents = Message.breakMessage(this.rawMessage);
+        const messageComponents = Message.breakMessage(this.rawMessage);
 
         /** The command associated with the message (first word in lowercase).*/
         this.command = messageComponents[0].toLowerCase();
@@ -25,7 +25,7 @@ class Message {
     /**
      * Parse a raw message string and return its components.
      * Returns a parsed array with: anything in brackets, anything in quotes,
-     * anything separated by spaces (in that hierarchy) 
+     * anything separated by spaces (in that hierarchy).
      * @param {string} rawMessage The original message string.
      * @return {[string]}
      */
