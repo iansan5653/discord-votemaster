@@ -1,8 +1,8 @@
 const private = require('./private.js');
 const Discord = require('discord.js');
 const client = new Discord.Client();
-const messageProcessing = require('msg/processing.js');
-const messageBuilding = require('msg/building.js');
+const messageProcessing = require('./msg/processing.js');
+const messageBuilding = require('./msg/building.js');
 
 const defaults = {
     timeout: 30,
@@ -271,6 +271,7 @@ client.on('ready', () => {
 client.on('message', discordMessage => {
     if (discordMessage.content) {
         const message = new messageProcessing.Message(discordMessage.content);
+        const args = message.argStrings;
 
         if (message.command === defaults.triggers.newPoll) {
             if (
