@@ -406,14 +406,14 @@ client.on('message', discordMessage => {
 
             discordMessage.channel.send(voteResponse);
         } else if (message.command == defaults.triggers.results) {
-            if (args[0].charAt(0) !== '#') {
-                discordMessage.channel.send('Sorry, I don\'t know which poll to get results for. Please specify the poll id number using a pound sign and number (ie \'!results #1\').');
+            if (!message.args[0] || !message.args[0].type === messageProcessing.ARGUMENT_TYPES.NUMBER) {
+                discordMessage.channel.send('Please specify the poll id number using a pound sign and number (ie \'!results #1\').');
             } else {
-                const pollID = +(args[0].substr(1));
+                const pollID = message.args[0].parsed;
 
                 if (polls.get(pollID)) {
                     let embed;
-                    if (args[1] && (args[1].slice(2) === 'detailed' || args[1].slice(2) === 'users')) {
+                    if (message.args[1] && (message.args[1].parsed === 'detailed' || message.args[1].parsed === 'users')) {
                         embed = generateDiscordEmbed(polls.get(pollID), 'detailResults');
                     } else {
                         embed = generateDiscordEmbed(polls.get(pollID), 'results');
@@ -425,7 +425,7 @@ client.on('message', discordMessage => {
                 }
             }
         } else if (message.command == '!pollping') {
-            discordMessage.channel.send('PONG!'); // for testing connection
+            discordMessage.channel.send('Pong!'); // for testing connection
         }
     }
 });
