@@ -12,5 +12,17 @@
     "parserOptions": {
         "ecmaVersion": 2018
     },
-    "rules": {}
+    "rules": {
+        "linebreak-style": [
+            "error",
+            "windows"
+        ],
+        "indent": [
+            "error",
+            4
+        ],
+        "comma-dangle": "off",
+        "arrow-parens": "off",
+        "max-len": "warn"
+    }
 }
