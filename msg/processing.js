@@ -19,7 +19,7 @@ class Message {
          * The rest of the message components as defined by
          * {@link Message.breakMessage}.
          */
-        this.args = Message.parseArgs(this.rawMessage)
+        this.args = messageComponents.shift()
     }
 
     /**

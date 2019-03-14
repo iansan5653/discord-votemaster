@@ -1,6 +1,8 @@
 const private = require('./private.js');
 const Discord = require('discord.js');
 const client = new Discord.Client();
+const message_processing = require('msg/processing.js');
+const message_building = require('msg/building.js');
 
 const defaults = {
 	timeout: 30,
@@ -237,12 +239,11 @@ client.on('ready', () => {
 	console.log('I am ready!');
 });
 
-client.on('message', message => {
-	if(message.content) {
-		// Array with: anything in brackets, anything in quotes, anything separated by spaces (in that hierarchy)
-		var args = message.content.trim().match(/(?:[^\s"\[]+|\[[^\[]*\]|"[^"]*")+/g);
-		if(args[0].toLowerCase() === defaults.triggers.newPoll) {
-			args.shift();
+client.on('message', discordMessage => {
+	if(discordMessage.content) {
+        let message = message_processing.Message(discordMessage.content);
+        let args = message.args;
+		if(message.command === defaults.triggers.newPoll) {
 			// Do a little format checking to make sure (first argument, title, should be in quotes, and second argument, choices, should be in brackets)
 			if(
 				args.length > 1 &&
@@ -265,7 +266,7 @@ client.on('message', message => {
 					arguments: {},
 					role: false,
 					notes: '',
-					server: message.guild
+					server: discordMessage.guild
 				};
 
 				// args should now just have the arguments
@@ -345,19 +346,17 @@ client.on('message', message => {
 				polls.set(newPoll.id, newPoll);
 
 				let embed = generateDiscordEmbed(newPoll, 'poll');
-				message.channel.send('OK, here\'s your poll:', {embed});
+				discordMessage.channel.send('OK, here\'s your poll:', {embed});
 
 			} else {
 				console.error("Message format was invalid.");
-				message.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.triggers.newPoll} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
+				discordMessage.channel.send(`Poll requests must at minimum include a title (in "double quotes") and a set of options (in [square brackets], separated by commas). For example, try \`${defaults.triggers.newPoll} "What is your favorite shade of red?" [dark red, medium red, light red]\`.`);
 			}
 
-		} else if(args[0].toLowerCase() == defaults.triggers.vote) {
-			args.shift();
-
+		} else if(message.command == defaults.triggers.vote) {
 			var activePollsInServer = [], voteResponse;
 			polls.forEach(poll => {
-				if(poll.open && poll.server == message.guild) {
+				if(poll.open && poll.server == discordMessage.guild) {
 					activePollsInServer.push(poll.id);
 				}
 			});
@@ -368,7 +367,7 @@ client.on('message', message => {
 			} else if(args[0].charAt(0) !== '#') {
 				// Only the vote was supplied
 				if(activePollsInServer.length === 1) {
-					voteResponse = polls.get(activePollsInServer[0]).vote(args[0].toLowerCase(), message.author).message;
+					voteResponse = polls.get(activePollsInServer[0]).vote(args[0].toLowerCase(), discordMessage.author).message;
 				} else {
 					// TODO dynamic examples
 					voteResponse = 'Sorry, I don\'t know which poll to vote on. Please specify the poll id number using a pound sign and a number (ie \'!vote #1 A\') before your vote.';
@@ -379,22 +378,20 @@ client.on('message', message => {
 				let pollID = +(args[0].substr(1));
 
 				if(activePollsInServer.includes(pollID)) {
-					voteResponse = polls.get(pollID).vote(args[1].toLowerCase(), message.author).message;
+					voteResponse = polls.get(pollID).vote(args[1].toLowerCase(), discordMessage.author).message;
 				} else {
 					// TODO dynamic examples
 					voteResponse = 'Sorry, that\'s not a valid poll to vote on. Please specify the poll id number (ie \'!vote #1 A\') before your vote.';
 				}
 	 		}
 
-	 		message.channel.send(voteResponse);
+	 		discordMessage.channel.send(voteResponse);
 
-	 	} else if(args[0].toLowerCase() == defaults.triggers.results) {
-	 		args.shift();
-
+	 	} else if(message.command == defaults.triggers.results) {
 	 		var response;
 
 	 		if(args[0].charAt(0) !== '#') { 
-	 			message.channel.send('Sorry, I don\'t know which poll to get results for. Please specify the poll id number using a pound sign and number (ie \'!results #1\').');
+	 			discordMessage.channel.send('Sorry, I don\'t know which poll to get results for. Please specify the poll id number using a pound sign and number (ie \'!results #1\').');
 	 		} else {
 	 			let pollID = +(args[0].substr(1));
 
@@ -406,14 +403,14 @@ client.on('message', message => {
 	 					embed = generateDiscordEmbed(polls.get(pollID), 'results');
 	 				}
 	 				
-	 				message.channel.send('OK, here\'s the results:', {embed});
+	 				discordMessage.channel.send('OK, here\'s the results:', {embed});
 	 			} else {
-	 				message.channel.send('Sorry, that poll doesn\'t seem to exist.');
+	 				discordMessage.channel.send('Sorry, that poll doesn\'t seem to exist.');
 	 			}
 	 		}
 
-	 	} else if(args[0].toLowerCase() == '!pollping') {
-	 		message.channel.send('PONG!'); //for testing connection
+	 	} else if(message.command == '!pollping') {
+	 		discordMessage.channel.send('PONG!'); //for testing connection
 	 	}
 	}
 });
