@@ -23,6 +23,7 @@
         ],
         "comma-dangle": "off",
         "arrow-parens": "off",
-        "max-len": "warn"
+        "max-len": "warn",
+        "prefer-const": "warn"
     }
 }
